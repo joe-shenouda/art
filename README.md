@@ -1,4 +1,4 @@
-Art Institute of Chicago - Random Artwork Gallery
+Art Institute of Chicago - Random Artwork Gallery<br>
 Welcome to our dynamic gallery showcasing random artworks from the Art Institute of Chicago.
 
 A new artwork is fetched every 5 seconds, providing a fresh and ever-changing display.
