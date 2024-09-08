@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Art Institute of Chicago - Random Artwork Gallery</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        h1 {
+            text-align: center;
+            color: #1a1a1a;
+        }
+        #gallery {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+        }
+        .artwork {
+            width: 100%;
+            background-color: #ffffff;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+            display: flex;
+            flex-direction: column;
+        }
+        .artwork:hover {
+            transform: translateY(-5px);
+        }
+        .artwork img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 5px;
+        }
+        .artwork-info {
+            margin-top: 10px;
+        }
+        .artwork-info h3 {
+            margin: 0;
+            color: #2c3e50;
+        }
+        .error {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        .explanation {
+            text-align: center;
+            margin-bottom: 20px;
+            color: #555;
+            line-height: 1.6;
+        }
+        .artwork.placeholder {
+            background-color: #e0e0e0;
+            min-height: 200px;
+        }
+        .fullscreen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .fullscreen img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+        }
+    </style>
+</head>
+<body>
+    <h1>Art Institute of Chicago - Random Artwork Gallery</h1>
+    <div class="explanation">
+        <p>Welcome to our dynamic gallery showcasing random artworks from the Art Institute of Chicago.</p>
+        <p>A new artwork is fetched every 5 seconds, providing a fresh and ever-changing display.</p>
+        <p>The gallery shows 16 artworks in a 4x4 grid. Enjoy the continuous stream of art!</p>
+    </div>
+    <div id="gallery">
+        <!-- Placeholder elements -->
+        <div class="artwork placeholder"></div>
+        <div class="artwork placeholder"></div>
+        <div class="artwork placeholder"></div>
+        <div class="artwork placeholder"></div>
+        <div class="artwork placeholder"></div>
+        <div class="artwork placeholder"></div>
+        <div class="artwork placeholder"></div>
+        <div class="artwork placeholder"></div>
+        <div class="artwork placeholder"></div>
+        <div class="artwork placeholder"></div>
+        <div class="artwork placeholder"></div>
+        <div class="artwork placeholder"></div>
+        <div class="artwork placeholder"></div>
+        <div class="artwork placeholder"></div>
+        <div class="artwork placeholder"></div>
+    </div>
+
+    <script>
+        const galleryDiv = document.getElementById('gallery');
+        let fetchedIds = new Set();
+        let isLoading = false;
+
+        async function fetchArtwork() {
+            if (isLoading) return;
+            isLoading = true;
+
+            try {
+                const apiCalls = [
+                    () => `https://api.artic.edu/api/v1/artworks?fields=id,title,image_id,artist_display,date_display&limit=1&page=${Math.floor(Math.random() * 100) + 1}`,
+                    () => `https://api.artic.edu/api/v1/artworks/search?q=${getRandomSearchTerm()}&fields=id,title,image_id,artist_display,date_display&limit=1`,
+                    () => `https://api.artic.edu/api/v1/artworks/${getRandomArtworkId()}?fields=id,title,image_id,artist_display,date_display`,
+                ];
+                
+                const selectedApiCall = apiCalls[Math.floor(Math.random() * apiCalls.length)];
+                const response = await fetch(selectedApiCall());
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                let artwork;
+                if (Array.isArray(data.data)) {
+                    artwork = data.data[0];
+                } else if (data.data) {
+                    artwork = data.data;
+                }
+                
+                if (artwork && artwork.image_id && !fetchedIds.has(artwork.id)) {
+                    fetchedIds.add(artwork.id);
+                    const artworkElement = createArtworkElement(artwork);
+                    galleryDiv.insertBefore(artworkElement, galleryDiv.firstChild);
+
+                    if (galleryDiv.children.length > 16) {
+                        galleryDiv.removeChild(galleryDiv.lastElementChild);
+                    }
+
+                    updateArtworkOrder();
+                } else {
+                    console.log('No valid artwork data found or duplicate artwork, will try again in next interval.');
+                }
+            } catch (error) {
+                console.error('Error fetching artwork:', error);
+            } finally {
+                isLoading = false;
+            }
+        }
+
+        function createArtworkElement(artwork) {
+            const artworkElement = document.createElement('div');
+            artworkElement.classList.add('artwork');
+            
+            const img = document.createElement('img');
+            img.src = `https://www.artic.edu/iiif/2/${artwork.image_id}/full/843,/0/default.jpg`;
+            img.alt = artwork.title;
+            
+            const info = document.createElement('div');
+            info.classList.add('artwork-info');
+            info.innerHTML = `
+                <h3>${artwork.title}</h3>
+                <p>${artwork.artist_display}</p>
+                <p>${artwork.date_display}</p>
+            `;
+            
+            artworkElement.appendChild(img);
+            artworkElement.appendChild(info);
+            
+            // Add click event for fullscreen view
+            artworkElement.addEventListener('click', () => toggleFullscreen(img.src));
+            
+            return artworkElement;
+        }
+
+        function toggleFullscreen(imageSrc) {
+            const existingFullscreen = document.querySelector('.fullscreen');
+            if (existingFullscreen) {
+                existingFullscreen.remove();
+            } else {
+                const fullscreenDiv = document.createElement('div');
+                fullscreenDiv.classList.add('fullscreen');
+                
+                const fullscreenImg = document.createElement('img');
+                fullscreenImg.src = imageSrc;
+                
+                fullscreenDiv.appendChild(fullscreenImg);
+                document.body.appendChild(fullscreenDiv);
+                
+                fullscreenDiv.addEventListener('click', () => fullscreenDiv.remove());
+            }
+        }
+
+        function getRandomSearchTerm() {
+            const searchTerms = ['landscape', 'portrait', 'abstract', 'still life', 'sculpture', 'modern', 'ancient', 'impressionism', 'expressionism', 'cubism'];
+            return searchTerms[Math.floor(Math.random() * searchTerms.length)];
+        }
+
+        function getRandomArtworkId() {
+            return Math.floor(Math.random() * 100000) + 1;
+        }
+
+        function updateArtworkOrder() {
+            const artworks = Array.from(galleryDiv.children);
+            artworks.forEach((artwork, index) => {
+                artwork.style.order = index;
+            });
+        }
+
+        // Fetch new artwork every 5 seconds
+        setInterval(fetchArtwork, 5000);
+
+        // Initial fetch
+        fetchArtwork();
+    </script>
+</body>
+</html>
